@@ -44,8 +44,6 @@
 
 #include "exception.h"
 
-__FBSDID("$FreeBSD$");
-
 /*============================ Namespace Control =============================*/
 using std::string;
 using std::stringstream;

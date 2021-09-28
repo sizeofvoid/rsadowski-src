@@ -37,6 +37,7 @@
  * received via the devdctl API.
  */
 #include <sys/cdefs.h>
+#include <sys/types.h>
 #include <sys/disk.h>
 #include <sys/filio.h>
 #include <sys/param.h>
@@ -49,6 +50,7 @@
 #include <stdlib.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <stddef.h>
 
 #include <cstdarg>
 #include <cstring>
@@ -62,8 +64,6 @@
 #include "event.h"
 #include "event_factory.h"
 #include "exception.h"
-
-__FBSDID("$FreeBSD$");
 
 /*================================== Macros ==================================*/
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
@@ -277,7 +277,7 @@ Event::GetTimestamp() const
 bool
 Event::DevPath(std::string &path) const
 {
-	char buf[SPECNAMELEN + 1];
+	char buf[256];
 	string devName;
 
 	if (!DevName(devName))
@@ -289,10 +289,12 @@ Event::DevPath(std::string &path) const
 		return (false);
 
 	/* Normalize the device name in case the DEVFS event is for a link. */
+	/* XXX OpenBSD porting
 	if (fdevname_r(devFd, buf, sizeof(buf)) == NULL) {
 		close(devFd);
 		return (false);
 	}
+	*/
 	devName = buf;
 	path = _PATH_DEV + devName;
 
@@ -304,6 +306,8 @@ Event::DevPath(std::string &path) const
 bool
 Event::PhysicalPath(std::string &path) const
 {
+	return false;
+	/* XXX OpenBSD porting
 	string devPath;
 
 	if (!DevPath(devPath))
@@ -320,6 +324,7 @@ Event::PhysicalPath(std::string &path) const
 	if (result)
 		path = physPath;
 	return (result);
+	*/
 }
 
 //- Event Protected Methods ----------------------------------------------------
