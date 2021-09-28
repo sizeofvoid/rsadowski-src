@@ -1,50 +1,16 @@
-# $FreeBSD$
+#	$OpenBSD: Makefile,v 1.2 2021/07/26 09:26:36 florian Exp $
 
-.include <src.opts.mk>
+PROG =	devd
+SRCS =	devd.cc parse.y token.l
 
-WARNS?= 3
-PACKAGE=utilities
-CONFGROUPS=	CONFS DEVD
-CONFS=	devd.conf
-DEVD=	devmatch.conf
-DEVDDIR=	/etc/devd
-.if ${MK_ACPI} != "no"
-DEVD+=	asus.conf
-.endif
+MAN =	devd.8 devd.conf.5
 
-.if ${MK_HYPERV} != "no"
-DEVD+=	hyperv.conf
-.endif
+CPPFLAGS += -I${.CURDIR} -I.
 
-.if ${MK_USB} != "no"
-DEVD+=	uath.conf ulpt.conf
-.endif
+CPPFLAGS += -Wno-missing-variable-declarations
 
-.if ${MACHINE_ARCH} == "powerpc"
-DEVD+=	apple.conf
-.endif
+CLEANFILES = y.code.c y.tab.d y.tab.o
 
-.if ${MK_ZFS} != "no"
-DEVD+=	zfs.conf
-.endif
-
-PROG_CXX=devd
-SRCS=	devd.cc token.l parse.y y.tab.h
-MAN=	devd.8 devd.conf.5
-
-NO_SHARED?=YES
-
-LIBADD=	util
-
-YFLAGS+=-v
-CFLAGS+=-I. -I${.CURDIR}
-CFLAGS.clang += -Wno-missing-variable-declarations
-CFLAGS.gcc = -Wno-redundant-decls
-CXXFLAGS.gcc = -Wno-redundant-decls
-
-CLEANFILES= y.output y.tab.i
-
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+LDADD += -levent -lutil
 
 .include <bsd.prog.mk>

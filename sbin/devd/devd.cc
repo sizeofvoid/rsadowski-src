@@ -64,15 +64,15 @@
 //	  - devd.conf needs more details on the supported statements.
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
+#include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 
 #include <cctype>
 #include <cerrno>
@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <err.h>
 #include <fcntl.h>
-#include <libutil.h>
+#include <util.h>
 #include <paths.h>
 #include <poll.h>
 #include <regex.h>
@@ -156,10 +156,9 @@ static volatile sig_atomic_t romeo_must_die = 0;
 
 static const char *configfile = CF;
 
-static void devdlog(int priority, const char* message, ...)
-	__printflike(2, 3);
+static void devdlog(int priority, const char* message, ...);
 static void event_loop(void);
-static void usage(void) __dead2;
+static void usage(void) __dead;
 
 template <class T> void
 delete_and_clear(vector<T *> &v)
@@ -332,8 +331,8 @@ media::media(config &, const char *var, const char *type)
 	static struct ifmedia_description media_types[] = {
 		{ IFM_ETHER,		"Ethernet" },
 		{ IFM_IEEE80211,	"802.11" },
-		{ IFM_ATM,		"ATM" },
-		{ -1,			"unknown" },
+		// XXX OpenBSD porting
+		//{ -1,			"unknown" },
 		{ 0, NULL },
 	};
 	for (int i = 0; media_types[i].ifmt_string != NULL; ++i)
@@ -523,7 +522,8 @@ config::open_pidfile()
 
 	if (_pidfile.empty())
 		return;
-	pfh = pidfile_open(_pidfile.c_str(), 0600, &otherpid);
+	// XXX OpenBSD porting
+	// pfh = pidfile(_pidfile.c_str());
 	if (pfh == NULL) {
 		if (errno == EEXIST)
 			errx(1, "devd already running, pid: %d", (int)otherpid);
@@ -534,22 +534,24 @@ config::open_pidfile()
 void
 config::write_pidfile()
 {
-
-	pidfile_write(pfh);
+	// XXX OpenBSD porting
+	//pidfile_write(pfh);
 }
 
 void
 config::close_pidfile()
 {
 
-	pidfile_close(pfh);
+	// XXX OpenBSD porting
+	//pidfile_close(pfh);
 }
 
 void
 config::remove_pidfile()
 {
 
-	pidfile_remove(pfh);
+	// XXX OpenBSD porting
+	//pidfile_remove(pfh);
 }
 
 void
@@ -1272,16 +1274,18 @@ check_devd_enabled()
 {
 	int val = 0;
 	size_t len;
-
+	// XXX OpenBSD porting
+	/*
 	len = sizeof(val);
-	if (sysctlbyname(SYSCTL, &val, &len, NULL, 0) != 0)
+	if (sysctl(SYSCTL, &val, &len, NULL, 0) != 0)
 		errx(1, "devctl sysctl missing from kernel!");
 	if (val == 0) {
 		warnx("Setting " SYSCTL " to 1000");
 		val = 1000;
-		if (sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val)))
+		if (sysct(SYSCTL, NULL, NULL, &val, sizeof(val)))
 			err(1, "sysctlbyname");
 	}
+	*/
 }
 
 /*

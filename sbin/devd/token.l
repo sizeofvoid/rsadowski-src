@@ -35,7 +35,7 @@
 #include <string.h>
 #include <syslog.h>
 #include "devd.h"
-#include "y.tab.h"
+#include "parse.h"
 
 int lineno = 1;
 
