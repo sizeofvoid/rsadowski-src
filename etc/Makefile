@@ -96,6 +96,10 @@ distribution-etc-root-var: distrib-dirs
 	cat fbtab.head etc.${MACHINE}/fbtab fbtab.tail > ${DESTDIR}/etc/fbtab && \
 	    chown ${BINOWN}:${BINGRP} ${DESTDIR}/etc/fbtab && \
 	    chmod 644 ${DESTDIR}/etc/fbtab
+	 sed -e "s,ENV_OSREV,${OSREV},g" -e "s,ENV_ARCH,${ARCH},g" os-release \
+		> ${DESTDIR}/etc/os-release && \
+	    chown ${BINOWN}:${BINGRP} ${DESTDIR}/etc/os-release && \
+	    chmod 444 ${DESTDIR}/etc/os-release
 	${INSTALL} -c -o ${BINOWN} -g operator -m 664 motd ${DESTDIR}/etc
 	${INSTALL} -c -o root -g crontab -m 600 crontab ${DESTDIR}/var/cron/tabs/root
 	${INSTALL} -c -o root -g wheel -m 600 master.passwd ${DESTDIR}/etc
