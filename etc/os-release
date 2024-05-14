@@ -1,0 +1,13 @@
+#
+# $OpenBSD: ftpd,v 1.4 2018/01/11 19:52:12 rpe Exp $
+
+# https://www.freedesktop.org/software/systemd/man/os-release.html
+
+NAME=OpenBSD
+VERSION=ENV_OSREV
+ID=openbsd
+VERSION_ID=ENV_OSREV
+PRETTY_NAME="OpenBSD/ENV_ARCH ENV_OSREV"
+CPE_NAME="cpe:/o:openbsd:openbsd:ENV_OSREV"
+HOME_URL="https://www.openbsd.org/"
+BUG_REPORT_URL="https://www.openbsd.org/report.html"
