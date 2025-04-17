@@ -74,6 +74,16 @@ DT_STATIC_PROBE3(vfs, bufcache_rel, "long", "int", "int64_t");
 DT_STATIC_PROBE3(vfs, bufcache_take, "long", "int", "int64_t");
 DT_STATIC_PROBE4(vfs, cleaner, "long", "int", "long", "long");
 
+/*
+ * FFS
+ */
+DT_STATIC_PROBE2(ffs, sync_vnode_enter, "void *", "void *");
+DT_STATIC_PROBE2(ffs, sync_vnode_return, "void *", "void *");
+DT_STATIC_PROBE5(ffs, sync_enter, "void *", "int", "int", "void *", "void *");
+DT_STATIC_PROBE5(ffs, sync_return, "void *", "int", "int", "void *", "void *");
+DT_STATIC_PROBE3(ffs, vget_enter, "void *", "void *", "void **");
+DT_STATIC_PROBE3(ffs, vget_return, "void *", "void *", "void **");
+
 #ifdef __amd64__
 /*
  * VMM

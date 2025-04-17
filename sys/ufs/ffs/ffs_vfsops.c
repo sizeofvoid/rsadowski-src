@@ -51,6 +51,7 @@
 #include <sys/dkio.h>
 #include <sys/disk.h>
 #include <sys/specdev.h>
+#include <sys/tracepoint.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
@@ -1048,6 +1049,8 @@ ffs_sync_vnode(struct vnode *vp, void *arg)
 	if (vp->v_type == VNON)
 		return (0);
 
+	TRACEPOINT(ffs, sync_vnode_enter, vp, arg);
+
 	ip = VTOI(vp);
 
 	/*
@@ -1083,6 +1086,8 @@ ffs_sync_vnode(struct vnode *vp, void *arg)
 	VOP_UNLOCK(vp);
 	vrele(vp);
 
+	TRACEPOINT(ffs, sync_vnode_return, vp, arg);
+
 end:
 	fsa->nlink0 = MIN(fsa->nlink0 + nlink0, 65536);
 	return (0);
@@ -1104,6 +1109,9 @@ ffs_sync(struct mount *mp, int waitfor, int stall, struct ucred *cred, struct pr
 	struct ffs_sync_args fsa;
 
 	fs = ump->um_fs;
+
+	TRACEPOINT(ffs, sync_enter, mp, waitfor, stall, cred, p);
+
 	/*
 	 * Write back modified superblock.
 	 * Consistency check that the superblock
@@ -1168,6 +1176,8 @@ ffs_sync(struct mount *mp, int waitfor, int stall, struct ucred *cred, struct pr
 	fs->fs_clean = clean;
 	fs->fs_fmod = fmod;
 
+	TRACEPOINT(ffs, sync_return, mp, waitfor, stall, cred, p);
+
 	return (allerror);
 }
 
@@ -1191,6 +1201,8 @@ ffs_vget(struct mount *mp, ino_t ino, struct vnode **vpp)
 	struct vnode *vp;
 	dev_t dev;
 	int error;
+
+	TRACEPOINT(ffs, vget_enter, mp, ino, vpp);
 
 	if (ino > (ufsino_t)-1)
 		panic("ffs_vget: alien ino_t %llu", (unsigned long long)ino);
@@ -1306,6 +1318,7 @@ retry:
 		ip->i_ffs1_gid = ip->i_din1->di_ogid;
 	}
 
+	TRACEPOINT(ffs, vget_return, mp, ino, vpp);
 	*vpp = vp;
 
 	return (0);
