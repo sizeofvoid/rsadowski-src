@@ -19,6 +19,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/wait.h>
 #include <sys/queue.h>
 
 #include <assert.h>
@@ -128,6 +129,8 @@ int			 verbose = 0;
 int			 dtfd;
 volatile sig_atomic_t	 quit_pending;
 
+pid_t			cmd_pid = -1;
+
 static void
 signal_handler(int sig)
 {
@@ -142,6 +145,8 @@ main(int argc, char *argv[])
 	const char *filename = NULL, *btscript = NULL;
 	int showprobes = 0, noaction = 0;
 	size_t btslen = 0;
+
+	char **cmd_args = NULL;
 
 	setlocale(LC_ALL, "");
 
@@ -167,12 +172,19 @@ main(int argc, char *argv[])
 			usage();
 		}
 	}
-
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 0 && btscript == NULL)
-		filename = argv[0];
+	if (argc > 0) {
+		if (btscript == NULL) {
+			/* First non-option arg is the btrace script file */
+			filename = argv[0];
+			if (argc > 1)
+				cmd_args = argv + 1;
+		} else {
+			cmd_args = argv;
+		}
+	}
 
 	 /* Cannot pledge due to special ioctl()s */
 	if (unveil(__PATH_DEVDT, "r") == -1)
@@ -182,6 +194,10 @@ main(int argc, char *argv[])
 	if (filename != NULL) {
 		if (unveil(filename, "r") == -1)
 			err(1, "unveil %s", filename);
+	}
+	if (cmd_args != NULL) {
+		if (unveil(cmd_args[0], "x") == -1)
+			err(1, "unveil %s", cmd_args[0]);
 	}
 	if (unveil(NULL, NULL) == -1)
 		err(1, "unveil");
@@ -207,6 +223,16 @@ main(int argc, char *argv[])
 	if (noaction)
 		return error;
 
+	if (cmd_args != NULL) {
+		cmd_pid = fork();
+		if (cmd_pid == -1) {
+			err(1, "fork failed");
+		} else if (cmd_pid == 0) {
+			execvp(cmd_args[0], cmd_args);
+			err(1, "exec failed: %s", cmd_args[0]);
+		}
+	}
+
 	if (showprobes || g_nprobes > 0) {
 		fd = open(__PATH_DEVDT, O_RDONLY);
 		if (fd == -1)
@@ -231,8 +257,8 @@ main(int argc, char *argv[])
 __dead void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-lnv] [-e program | file] [-p file] "
-	    "[argument ...]\n", getprogname());
+	fprintf(stderr, "usage: %s [-lnv] [-e program | file] [-p file]"
+	    " [argument ...] [command]\n", getprogname());
 	exit(1);
 }
 
@@ -456,6 +482,7 @@ rules_do(int fd)
 {
 	struct sigaction sa;
 	int halt = 0;
+	pid_t wait_pid;
 
 	memset(&sa, 0, sizeof(sa));
 	sigemptyset(&sa.sa_mask);
@@ -466,12 +493,20 @@ rules_do(int fd)
 	if (sigaction(SIGTERM, &sa, NULL))
 		err(1, "sigaction");
 
+
 	halt = rules_setup(fd);
 
 	while (!quit_pending && !halt && g_nprobes > 0) {
 		static struct dt_evt devtbuf[64];
 		ssize_t rlen;
 		size_t i;
+
+		/* Check if the spawned program is still running */
+		if (cmd_pid != -1) {
+			wait_pid = waitpid(cmd_pid, NULL, WNOHANG);
+			if (wait_pid == cmd_pid || wait_pid == -1)
+				break;
+		}
 
 		rlen = read(fd, devtbuf, sizeof(devtbuf));
 		if (rlen == -1) {

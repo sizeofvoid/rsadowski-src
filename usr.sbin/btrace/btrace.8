@@ -26,6 +26,7 @@
 .Op Fl e Ar program | Ar file
 .Op Fl p Ar file
 .Op Ar argument ...
+.Op Ar command args
 .Sh DESCRIPTION
 The
 .Nm
@@ -37,6 +38,10 @@ program in
 .Ar file
 and communicates with the dynamic tracer device using the interface described in
 .Xr dt 4 .
+.Pp
+If a command is provided as the last argument, btrace will execute that
+command. This allows for targeted tracing of specific processes for the
+duration of their execution.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
