@@ -33,10 +33,6 @@
 #ifndef _UFS_UFS_UFS_WAPBL_H_
 #define	_UFS_UFS_UFS_WAPBL_H_
 
-#if defined(_KERNEL_OPT)
-#include "opt_wapbl.h"
-#endif
-
 /*
  * Information for the journal location stored in the superblock.
  * We store the journal version, some flags, the journal location
@@ -144,7 +140,7 @@ ufs_wapbl_end(struct mount *mp)
 	if (mp->mnt_wapbl) wapbl_unregister_deallocation(mp->mnt_wapbl, cookie)
 
 #else /* ! WAPBL */
-#define	UFS_WAPBL_BEGIN(mp) (__USE(mp), 0)
+#define	UFS_WAPBL_BEGIN(mp) ((void)(mp), 0)
 #define	UFS_WAPBL_END(mp)	do { } while (0)
 #define	UFS_WAPBL_UPDATE(vp, access, modify, flags)	do { } while (0)
 #define	UFS_WAPBL_JLOCK_ASSERT(mp)

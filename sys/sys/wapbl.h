@@ -34,17 +34,13 @@
 
 #include <sys/mutex.h>
 
-#if defined(_KERNEL) || defined(_KMEMUSER)
-#include <miscfs/specfs/specdev.h>
-#endif
+// #if defined(_KERNEL) || defined(_KMEMUSER)
+// #include <miscfs/specfs/specdev.h>
+// #endif
 
 /* This header file describes the api and data structures for
  * write ahead physical block logging (WAPBL) support.
  */
-
-#if defined(_KERNEL_OPT)
-#include "opt_wapbl.h"
-#endif
 
 #ifdef WAPBL_DEBUG
 #ifndef WAPBL_DEBUG_PRINT
@@ -180,6 +176,12 @@ void	wapbl_unregister_deallocation(struct wapbl *, void *);
 void	wapbl_jlock_assert(struct wapbl *wl);
 void	wapbl_junlock_assert(struct wapbl *wl);
 
+/* adapted from FreeBSD:/usr/include/sys/cdefs */
+#ifndef __printflike
+#define __printflike(fmtarg, firstvararg) \
+		__attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#endif
+
 void	wapbl_print(struct wapbl *wl, int full, void (*pr)(const char *, ...)
     __printflike(1, 2));
 
@@ -189,7 +191,7 @@ void	wapbl_dump(struct wapbl *);
 
 void	wapbl_biodone(struct buf *);
 
-extern const struct wapbl_ops wapbl_ops;
+//extern const struct wapbl_ops wapbl_ops;
 
 static __inline struct mount *
 wapbl_vptomp(struct vnode *vp)
@@ -197,12 +199,13 @@ wapbl_vptomp(struct vnode *vp)
 	struct mount *mp;
 
 	mp = NULL;
-	if (vp != NULL) {
-		if (vp->v_type == VBLK)
-			mp = spec_node_getmountedfs(vp);
-		else
-			mp = vp->v_mount;
-	}
+// XXX
+//	if (vp != NULL) {
+//		if (vp->v_type == VBLK)
+//			mp = spec_node_getmountedfs(vp);
+//		else
+//			mp = vp->v_mount;
+//	}
 
 	return mp;
 }
@@ -216,7 +219,7 @@ wapbl_vphaswapbl(struct vnode *vp)
 		return false;
 
 	mp = wapbl_vptomp(vp);
-	return mp && mp->mnt_wapbl;
+	return 0; // XXX return mp && mp->mnt_wapbl;
 }
 
 #endif /* _KERNEL */
@@ -274,5 +277,9 @@ int	wapbl_replay_can_read(struct wapbl_replay *, daddr_t, long);
 int	wapbl_replay_read(struct wapbl_replay *, void *, daddr_t, long);
 
 /****************************************************************/
+
+static int wapbl_replay_isopen1(struct wapbl_replay *);
+
+
 
 #endif /* !_SYS_WAPBL_H */

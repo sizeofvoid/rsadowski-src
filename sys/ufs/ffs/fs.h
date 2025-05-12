@@ -509,6 +509,18 @@ struct ocg {
      (fs)->fs_nsect * (fs)->fs_nrpos / (fs)->fs_npsect)
 
 /*
+ * Turn file system block numbers into disk block addresses.
+ * This maps file system blocks to device size blocks.
+ */
+#if defined (_KERNEL)
+#define	FFS_FSBTODB(fs, b)	((b) << ((fs)->fs_fshift - DEV_BSHIFT))
+#define	FFS_DBTOFSB(fs, b)	((b) >> ((fs)->fs_fshift - DEV_BSHIFT))
+#else
+#define	FFS_FSBTODB(fs, b)	((b) << (fs)->fs_fsbtodb)
+#define	FFS_DBTOFSB(fs, b)	((b) >> (fs)->fs_fsbtodb)
+#endif
+
+/*
  * The following macros optimize certain frequently calculated
  * quantities by using shifts and masks in place of divisions
  * modulos and multiplications.

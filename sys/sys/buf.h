@@ -130,8 +130,16 @@ struct buf {
 	dev_t	b_dev;			/* Device associated with buffer. */
 	caddr_t	b_data;			/* associated data */
 	void	*b_saveaddr;		/* Original b_data for physio. */
+	/*
+	 * b: private data for owner.
+	 *  - buffer cache buffers are owned by corresponding filesystem.
+	 *  - non-buffer cache buffers are owned by subsystem which
+	 *    allocated them. (filesystem, disk driver, etc)
+	 */
+	void	*b_private;
 
 	TAILQ_ENTRY(buf) b_valist;	/* LRU of va to reuse. */
+	TAILQ_ENTRY(buf)	b_wapbllist;	/*  transaction buffer list */
 
 	union	bufq_data b_bufq;
 	struct	bufq	  *b_bq;	/* What bufq this buf is on */

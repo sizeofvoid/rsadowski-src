@@ -34,7 +34,6 @@
 #define WAPBL_INTERNAL
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: wapbl.c,v 1.6 2022/07/25 05:15:08 dholland Exp $");
 
 #include <sys/stat.h>
 #include <sys/time.h>

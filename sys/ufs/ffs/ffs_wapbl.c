@@ -30,13 +30,8 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: ffs_wapbl.c,v 1.50 2024/12/30 09:03:07 hannken Exp $");
 
 #define WAPBL_INTERNAL
-
-#if defined(_KERNEL_OPT)
-#include "opt_ffs.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,13 +42,13 @@ __KERNEL_RCSID(0, "$NetBSD: ffs_wapbl.c,v 1.50 2024/12/30 09:03:07 hannken Exp $
 #include <sys/disk.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
-#include <sys/kauth.h>
+// #include <sys/kauth.h>
 #include <sys/wapbl.h>
 
-#include <ufs/ufs/inode.h>
 #include <ufs/ufs/quota.h>
+#include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_bswap.h>
+// XXX #include <ufs/ufs/ufs_bswap.h>
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ufs/ufs_wapbl.h>
 
@@ -98,7 +93,8 @@ static int
 ffs_superblock_layout(struct fs *fs)
 {
 	if ((fs->fs_magic == FS_UFS1_MAGIC) &&
-	    ((fs->fs_old_flags & FS_FLAGS_UPDATED) == 0))
+	    ((fs->fs_flags & FS_FLAGS_UPDATED) == 0))
+	    // ((fs->fs_old_flags & FS_FLAGS_UPDATED) == 0))
 		return 1;
 	else
 		return 2;
@@ -124,10 +120,9 @@ ffs_wapbl_replay_finish(struct mount *mp)
 	for (i = 0; i < wr->wr_inodescnt; i++) {
 		struct vnode *vp;
 		struct inode *ip;
-		error = VFS_VGET(mp, wr->wr_inodes[i].wr_inumber,
-		    LK_EXCLUSIVE, &vp);
+		error = VFS_VGET(mp, wr->wr_inodes[i].wr_inumber, &vp);
 		if (error) {
-			printf("%s: %s: unable to cleanup inode %" PRIu32 "\n",
+			printf("%s: %s: unable to cleanup inode %u \n",
 			    __func__, VFSTOUFS(mp)->um_fs->fs_fsmnt,
 			    wr->wr_inodes[i].wr_inumber);
 			continue;
@@ -135,12 +130,12 @@ ffs_wapbl_replay_finish(struct mount *mp)
 		ip = VTOI(vp);
 		KDASSERT(wr->wr_inodes[i].wr_inumber == ip->i_number);
 #ifdef WAPBL_DEBUG
-		printf("%s%s: %s: cleaning inode %" PRIu64 " size=%" PRIu64
+		printf("%s%s: %s: cleaning inode %llu size=%luu"
 		    " mode=%o nlink=%d\n",
 		    __func__, VFSTOUFS(mp)->um_fs->fs_fsmnt,
-		    ip->i_number, ip->i_size, ip->i_mode, ip->i_nlink);
+		    ip->i_number, ip->i_size, ip->i_vtbl->i_ffs2_mode, ip->i_vtbl->i_ffs2_nlink);
 #endif
-		KASSERT(ip->i_nlink == 0);
+		KASSERT(ip->i_ffs2_nlink == 0);
 
 		/*
 		 * The journal may have left partially allocated inodes in mode
@@ -148,16 +143,16 @@ ffs_wapbl_replay_finish(struct mount *mp)
 		 * allocation in ffs_nodeallocg and when the node is properly
 		 * initialized in ufs_makeinode.  If so, just deallocate them.
 		 */
-		if (ip->i_mode == 0) {
+		if (ip->i_ffs2_mode == 0) {
 			error = UFS_WAPBL_BEGIN(mp);
 			if (error) {
 				printf("%s: %s: "
-				    "unable to cleanup inode %" PRIu32 "\n",
+				    "unable to cleanup inode %u \n",
 				    __func__, VFSTOUFS(mp)->um_fs->fs_fsmnt,
 				    wr->wr_inodes[i].wr_inumber);
 			} else {
-				ffs_vfree(vp, ip->i_number,
-				    wr->wr_inodes[i].wr_imode);
+				// XXX ffs_vfree(vp, ip->i_number,
+				    // XXX wr->wr_inodes[i].wr_imode);
 				UFS_WAPBL_END(mp);
 			}
 		}
@@ -174,7 +169,7 @@ ffs_wapbl_sync_metadata(struct mount *mp, struct wapbl_dealloc *fdealloc)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs = ump->um_fs;
-	int error __diagused;
+	int error;
 	struct wapbl_dealloc *wd;
 
 	UFS_WAPBL_JLOCK_ASSERT(ump->um_mountp);
@@ -184,19 +179,19 @@ ffs_wapbl_sync_metadata(struct mount *mp, struct wapbl_dealloc *fdealloc)
 		 * blkfree errors are unreported, might silently fail
 		 * if it cannot read the cylinder group block
 		 */
-		ffs_blkfree(fs, ump->um_devvp,
-		    FFS_DBTOFSB(fs, wd->wd_blkno), wd->wd_len, -1);
+		// XXX ffs_blkfree(fs, ump->um_devvp,
+		// XXX    FFS_DBTOFSB(fs, wd->wd_blkno), wd->wd_len, -1);
 	}
 
-	mutex_enter(&ump->um_lock);
+	// XXX mtx_enter(&ump->um_lock);
 	if (fs->fs_fmod != 0) {
 		fs->fs_fmod = 0;
-		fs->fs_time = time_second;
-		mutex_exit(&ump->um_lock);
+		// XXX fs->fs_time = getrealtime();
+		// XXX mtx_leave(&ump->um_lock);
 		error = ffs_cgupdate(ump, 0);
 		KASSERT(error == 0);
 	} else {
-		mutex_exit(&ump->um_lock);
+		// XXX mtx_leave(&ump->um_lock);
 	}
 }
 
@@ -255,7 +250,7 @@ wapbl_remove_log(struct mount *mp)
 		/* if no existing log inode, just clear all fields and bail */
 		if (log_ino == 0)
 			goto done;
-		error = VFS_VGET(mp, log_ino, LK_EXCLUSIVE, &vp);
+		error = VFS_VGET(mp, log_ino, &vp);
 		if (error != 0) {
 			printf("%s: %s: vget failed %d\n", __func__,
 			    fs->fs_fsmnt, error);
@@ -276,7 +271,7 @@ wapbl_remove_log(struct mount *mp)
 		 * remove the log inode by setting its link count back
 		 * to zero and bail.
 		 */
-		ip->i_nlink = 0;
+		ip->i_ffs2_nlink = 0;
 		DIP_ASSIGN(ip, nlink, 0);
 		vput(vp);
 		break;
@@ -673,7 +668,7 @@ wapbl_create_infs_log(struct mount *mp, struct fs *fs, struct vnode *devvp,
 	ip = VTOI(vp);
 	ip->i_flags = SF_LOG;
 	DIP_ASSIGN(ip, flags, ip->i_flags);
-	ip->i_nlink = 1;
+	ip->i_ffs2_nlink = 1;
 	DIP_ASSIGN(ip, nlink, 1);
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	ffs_update(vp, NULL, NULL, UPDATE_WAIT);
@@ -685,7 +680,7 @@ wapbl_create_infs_log(struct mount *mp, struct fs *fs, struct vnode *devvp,
 		 * remove the inode by setting its link count back to
 		 * zero and bail.
 		 */
-		ip->i_nlink = 0;
+		ip->i_ffs2_nlink = 0;
 		DIP_ASSIGN(ip, nlink, 0);
 		vput(vp);
 
