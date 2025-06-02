@@ -96,10 +96,6 @@ static char	ablk[MAXBSIZE];		/* a block */
 
 static struct csum	*fscs;	/* cylinder summary */
 
-union dinode {
-	struct ufs1_dinode dp1;
-	struct ufs2_dinode dp2;
-};
 #define	DIP(dp, field) \
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
 	(uint32_t)(dp)->dp1.field : (dp)->dp2.field)

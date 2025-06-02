@@ -95,7 +95,7 @@
 #undef DIP
 #define DIP(dp, field) \
 	((ffs_opts->version == 1) ? \
-	(dp)->ffs1_din.di_##field : (dp)->ffs2_din.di_##field)
+	(dp)->dp1.di_##field : (dp)->dp2.di_##field)
 
 /*
  * Various file system defaults (cribbed from newfs(8)).
@@ -739,10 +739,10 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 
 				/* build on-disk inode */
 		if (ffs_opts->version == 1)
-			membuf = ffs_build_dinode1(&din.ffs1_din, &dirbuf, cur,
+			membuf = ffs_build_dinode1(&din.dp1, &dirbuf, cur,
 			    root, fsopts);
 		else
-			membuf = ffs_build_dinode2(&din.ffs2_din, &dirbuf, cur,
+			membuf = ffs_build_dinode2(&din.dp2, &dirbuf, cur,
 			    root, fsopts);
 
 		if (membuf != NULL) {
@@ -802,11 +802,11 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	in.i_number = ino;
 	in.i_size = DIP(din, size);
 	if (ffs_opts->version == 1)
-		memcpy(&in.i_din.ffs1_din, &din->ffs1_din,
-		    sizeof(in.i_din.ffs1_din));
+		memcpy(&in.i_din.dp1, &din->dp1,
+		    sizeof(in.i_din.dp1));
 	else
-		memcpy(&in.i_din.ffs2_din, &din->ffs2_din,
-		    sizeof(in.i_din.ffs2_din));
+		memcpy(&in.i_din.dp2, &din->dp2,
+		    sizeof(in.i_din.dp2));
 
 	if (DIP(din, size) == 0)
 		goto write_inode_and_leave;		/* mmm, cheating */
@@ -992,9 +992,9 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	d = fsbtodb(fs, ino_to_fsba(fs, ino));
 	ffs_rdfs(d, fs->fs_bsize, buf, fsopts);
 	if (ffs_opts->version == 1)
-		dp1[ino_to_fsbo(fs, ino)] = dp->ffs1_din;
+		dp1[ino_to_fsbo(fs, ino)] = dp->dp1;
 	else
-		dp2[ino_to_fsbo(fs, ino)] = dp->ffs2_din;
+		dp2[ino_to_fsbo(fs, ino)] = dp->dp2;
 	ffs_wtfs(d, fs->fs_bsize, buf, fsopts);
 	free(buf);
 }

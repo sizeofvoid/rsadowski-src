@@ -55,8 +55,10 @@ typedef u_int32_t	ufsino_t;
 #define	ROOTINO	((ufsino_t)2)
 
 /*
- * A dinode contains all the meta-data associated with a UFS file.
- * This structure defines the on-disk format of a dinode. Since
+ * Each UFS filesystem version defines the on-disk format of its dinode.
+ *
+ * A UFS2 dinode contains all the meta-data associated with a UFS2 file.
+ * This structure defines the on-disk format of a UFS2 dinode. Since
  * this structure describes an on-disk structure, all its fields
  * are defined by types with precise widths.
  */
@@ -113,6 +115,15 @@ struct ufs2_dinode {
 	int64_t		di_ib[NIADDR];	/* 208: Indirect disk blocks. */
 	int64_t		di_spare[3];	/* 232: Reserved; currently unused */
 };
+
+/*
+ * These structures hold or reference an on-disk dinode.
+ */
+union dinode {
+	struct ufs1_dinode dp1;
+	struct ufs2_dinode dp2;
+};
+
 
 /*
  * The di_db fields may be overlaid with other information for

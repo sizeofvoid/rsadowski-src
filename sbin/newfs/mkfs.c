@@ -118,11 +118,6 @@ union cg_u {
 } *cgun;
 #define acg	cgun->cg
 
-union dinode {
-	struct ufs1_dinode dp1;
-	struct ufs2_dinode dp2;
-};
-
 int	fsi, fso;
 
 static caddr_t iobuf;
