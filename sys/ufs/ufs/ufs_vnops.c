@@ -94,6 +94,7 @@ ufs_itimes(struct vnode *vp)
 {
 	struct inode *ip;
 	struct timespec ts;
+	int modified = 0;
 
 	ip = VTOI(vp);
 	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
@@ -109,27 +110,58 @@ ufs_itimes(struct vnode *vp)
 	}
 #endif
 
-	if ((vp->v_type == VBLK || vp->v_type == VCHR))
-		ip->i_flag |= IN_LAZYMOD;
-	else
-		ip->i_flag |= IN_MODIFIED;
-
 	getnanotime(&ts);
-	if (ip->i_flag & IN_ACCESS) {
-		DIP_ASSIGN(ip, atime, ts.tv_sec);
-		DIP_ASSIGN(ip, atimensec, ts.tv_nsec);
-	}
 	if (ip->i_flag & IN_UPDATE) {
 		DIP_ASSIGN(ip, mtime, ts.tv_sec);
 		DIP_ASSIGN(ip, mtimensec, ts.tv_nsec);
+		modified = 1;
 	}
 	if (ip->i_flag & IN_CHANGE) {
 		DIP_ASSIGN(ip, ctime, ts.tv_sec);
 		DIP_ASSIGN(ip, ctimensec, ts.tv_nsec);
 		ip->i_modrev++;
+		modified = 1;
+	}
+	if (ip->i_flag & IN_ACCESS) {
+		if (vp->v_mount->mnt_flag & MNT_RELATIME) {
+			struct timespec atime, ctime, mtime;
+
+			atime.tv_sec = DIP(ip, atime);
+			atime.tv_nsec = DIP(ip, atimensec);
+			ctime.tv_sec = DIP(ip, ctime);
+			ctime.tv_nsec = DIP(ip, ctimensec);
+			mtime.tv_sec = DIP(ip, mtime);
+			mtime.tv_nsec = DIP(ip, mtimensec);
+
+			/*
+			 * Update atime in the following cases:
+			 * - atime is older than ctime/mtime
+			 * - atime is older than 24 hours
+			 */
+			if (timespeccmp(&atime, &ctime, <) ||
+			    timespeccmp(&atime, &mtime, <) ||
+			    (ts.tv_sec - atime.tv_sec) >= 86400) {
+				DIP_ASSIGN(ip, atime, ts.tv_sec);
+				DIP_ASSIGN(ip, atimensec, ts.tv_nsec);
+				modified = 1;
+			}
+		} else {
+			DIP_ASSIGN(ip, atime, ts.tv_sec);
+			DIP_ASSIGN(ip, atimensec, ts.tv_nsec);
+			modified = 1;
+		}
+
 	}
 
- out:
+	if (!modified)
+		goto out;
+
+	if ((vp->v_type == VBLK || vp->v_type == VCHR))
+		ip->i_flag |= IN_LAZYMOD;
+	else
+		ip->i_flag |= IN_MODIFIED;
+
+out:
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
 }
 
@@ -429,10 +461,14 @@ ufs_setattr(void *v)
 		if (vap->va_mtime.tv_nsec != VNOVAL) {
 			DIP_ASSIGN(ip, mtime, vap->va_mtime.tv_sec);
 			DIP_ASSIGN(ip, mtimensec, vap->va_mtime.tv_nsec);
+			/* mtime change explicitely requested */
+			ip->i_flag |= IN_MODIFIED;
 		}
 		if (vap->va_atime.tv_nsec != VNOVAL) {
 			DIP_ASSIGN(ip, atime, vap->va_atime.tv_sec);
 			DIP_ASSIGN(ip, atimensec, vap->va_atime.tv_nsec);
+			/* atime change explicitely requested */
+			ip->i_flag |= IN_MODIFIED;
 		}
 		error = UFS_UPDATE(ip, 0);
 		if (error)

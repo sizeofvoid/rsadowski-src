@@ -84,6 +84,7 @@ static struct opt {
 	{ MNT_EXPORTANON,	1,	"anon uid mapping",	"" },
 	{ MNT_EXRDONLY,		1,	"exported read-only",	"" },
 	{ MNT_LOCAL,		0,	"local",		"" },
+	{ MNT_RELATIME,		0,	"relatime",		"relatime" },
 	{ MNT_NOATIME,		0,	"noatime",		"noatime" },
 	{ MNT_NODEV,		0,	"nodev",		"nodev" },
 	{ MNT_NOEXEC,		0,	"noexec",		"noexec" },

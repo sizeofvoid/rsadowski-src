@@ -61,6 +61,7 @@ union mntval {
 #define MOPT_NOPERM	{ "perm",	MNT_NOPERM, MFLAG_INVERSE | MFLAG_SET }
 #define MOPT_WXALLOWED	{ "wxallowed",	MNT_WXALLOWED, MFLAG_SET }
 #define MOPT_RDONLY	{ "rdonly",	MNT_RDONLY, MFLAG_SET }
+#define MOPT_RELATIME	{ "relatime",	MNT_RELATIME, MFLAG_SET }
 #define MOPT_SYNC	{ "sync",	MNT_SYNCHRONOUS, MFLAG_SET }
 #define MOPT_USERQUOTA	{ "userquota",	0, MFLAG_SET | MFLAG_STRVAL \
 					    | MFLAG_OPT }

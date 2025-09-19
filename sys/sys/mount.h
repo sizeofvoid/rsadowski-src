@@ -383,14 +383,14 @@ struct mount {
 /*
  * Mask of flags that are visible to statfs()
  */
-#define	MNT_VISFLAGMASK	0x0400ffff
+#define	MNT_VISFLAGMASK	0x0440ffff
 
 #define	MNT_BITS \
     "\20\001RDONLY\002SYNCHRONOUS\003NOEXEC\004NOSUID\005NODEV\006NOPERM" \
     "\007ASYNC\010EXRDONLY\011EXPORTED\012DEFEXPORTED\013EXPORTANON" \
     "\014WXALLOWED\015LOCAL\016QUOTA\017ROOTFS\020NOATIME\021UPDATE" \
-    "\022DELEXPORT\023RELOAD\024FORCE\025STALLED\026SWAPPABLE\031UNMOUNT" \
-    "\032WANTRDWR\033SOFTDEP\034DOOMED"
+    "\022DELEXPORT\023RELOAD\024FORCE\025STALLED\026SWAPPABLE\027RELATIME" \
+    "\031UNMOUNT\032WANTRDWR\033SOFTDEP\034DOOMED"
 
 /*
  * filesystem control flags.
@@ -401,6 +401,7 @@ struct mount {
 #define	MNT_FORCE	0x00080000	/* force unmount or readonly change */
 #define	MNT_STALLED	0x00100000	/* filesystem stalled */ 
 #define	MNT_SWAPPABLE	0x00200000	/* filesystem can be used for swap */
+#define MNT_RELATIME	0x00400000	/* update atime iff <= to ctime/mtime */
 #define MNT_UNMOUNT	0x01000000	/* unmount in progress */
 #define MNT_WANTRDWR	0x02000000	/* want upgrade to read/write */
 #define MNT_SOFTDEP     0x04000000      /* soft dependencies being done - now ignored */

@@ -178,8 +178,16 @@ The same as
 .Fl f ;
 forces the revocation of write access when trying to downgrade
 a file system mount status from read-write to read-only.
+.It Cm relatime
+(FFS only)
+Only update the access time on files in the filesystem if it is older
+than the modification or change time.
+Like
+.Cm noatime ,
+it is useful to avoid extra disk activity, but is also more friendly
+to some applications.
 .It Cm noatime
-Do not update atime on files in the system unless the mtime or ctime
+Do not update atime on files in the filesystem unless the mtime or ctime
 is being changed as well.
 This option is useful for laptops and news servers where one does
 not want the extra disk activity associated with updating the atime.

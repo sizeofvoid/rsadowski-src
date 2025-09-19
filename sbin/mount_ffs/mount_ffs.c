@@ -52,6 +52,7 @@ static const struct mntopt mopts[] = {
 	MOPT_ASYNC,
 	MOPT_SYNC,
 	MOPT_UPDATE,
+	MOPT_RELATIME,
 	MOPT_RELOAD,
 	MOPT_FORCE,
 	MOPT_SOFTDEP,

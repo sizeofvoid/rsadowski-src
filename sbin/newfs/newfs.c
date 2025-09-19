@@ -82,6 +82,7 @@ struct mntopt mopts[] = {
 	MOPT_ASYNC,
 	MOPT_UPDATE,
 	MOPT_FORCE,
+	MOPT_RELATIME,
 	{ NULL },
 };
 

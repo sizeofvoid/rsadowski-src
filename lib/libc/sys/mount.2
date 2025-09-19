@@ -78,6 +78,9 @@ suppress default semantics which affect filesystem access.
 .It Dv MNT_RDONLY
 The filesystem should be treated as read-only:
 even the superuser may not write to it.
+.It Dv MNT_RELATIME
+Only update the access time on files in the filesystem if the modification
+or status change times are newer.
 .It Dv MNT_NOATIME
 Do not update the access time on files in the filesystem unless
 the modification or status change times are also being updated.
