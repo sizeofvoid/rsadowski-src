@@ -59,6 +59,8 @@ struct xhci_pci_softc {
 	pcitag_t		sc_tag;
 	pcireg_t		sc_id;
 	void 			*sc_ih;		/* interrupt vectoring */
+
+	int			sc_pmcsr_state;
 };
 
 int	xhci_pci_match(struct device *, void *, void *);
@@ -233,6 +235,7 @@ int
 xhci_pci_activate(struct device *self, int act)
 {
 	struct xhci_pci_softc *psc = (struct xhci_pci_softc *)self;
+	int rc;
 
 	switch (act) {
 	case DVACT_RESUME:
@@ -243,9 +246,15 @@ xhci_pci_activate(struct device *self, int act)
 		break;
 	}
 
-	return (xhci_activate(self, act));
-}
+	rc = xhci_activate(self, act);
 
+	if (act == DVACT_POWERDOWN) {
+		pci_set_powerstate(psc->sc_pc, psc->sc_tag,
+		    pci_min_powerstate(psc->sc_pc, psc->sc_tag));
+	}
+
+	return rc;
+}
 
 void
 xhci_pci_takecontroller(struct xhci_pci_softc *psc, int silent)

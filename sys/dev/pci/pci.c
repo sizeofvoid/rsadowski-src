@@ -283,6 +283,8 @@ pci_suspend(struct pci_softc *sc)
 
 		pci_suspend_msix(sc->sc_pc, pd->pd_tag, sc->sc_memt,
 		    &pd->pd_msix_mc, pd->pd_msix_table);
+
+		pd->pd_pmcsr_state = pci_get_powerstate(sc->sc_pc, pd->pd_tag);
 	}
 }
 
@@ -307,8 +309,6 @@ pci_powerdown(struct pci_softc *sc)
 			 * Place the device into the lowest possible
 			 * power state.
 			 */
-			pd->pd_pmcsr_state = pci_get_powerstate(sc->sc_pc,
-			    pd->pd_tag);
 			pci_set_powerstate(sc->sc_pc, pd->pd_tag,
 			    pci_min_powerstate(sc->sc_pc, pd->pd_tag));
 		}
