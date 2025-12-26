@@ -196,6 +196,7 @@ clear_config_server_ptrs(struct server_config *cfg)
 
 	/* clear TAILQ_HEAD */
 	memset(&cfg->fcgiparams, 0, sizeof(cfg->fcgiparams));
+	memset(&cfg->headers, 0, sizeof(cfg->headers));
 
 	/* clear TAILQ_ENTRY */
 	memset(&cfg->entry, 0, sizeof(cfg->entry));
@@ -281,6 +282,9 @@ config_setserver(struct httpd *env, struct server *srv)
 
 			/* Configure FCGI parameters if necessary. */
 			config_setserver_fcgiparams(env, srv);
+
+			/* Configure custom headers if necessary. */
+			config_setserver_headers(env, srv);
 		}
 	}
 
@@ -433,6 +437,104 @@ config_setserver_fcgiparams(struct httpd *env, struct server *srv)
 	}
 	if (proc_composev(ps, PROC_SERVER, IMSG_CFG_FCGI, iov, c) != 0) {
 		log_warn("%s: failed to compose IMSG_CFG_FCGI imsg for "
+		    "`%s'", __func__, srv_conf->name);
+		free(iov);
+		return (-1);
+	}
+	free(iov);
+
+	return (0);
+}
+
+int
+config_getserver_headers(struct httpd *env, struct imsg *imsg)
+{
+	struct server		*srv;
+	struct server_config	*srv_conf, *iconf;
+	struct custom_header	*hdr;
+	uint32_t		 id;
+	size_t			 c, nc, len;
+	uint8_t			*p = imsg->data;
+
+	len = sizeof(nc) + sizeof(id);
+	if (IMSG_DATA_SIZE(imsg) < len) {
+		log_debug("%s: invalid message length", __func__);
+		return (-1);
+	}
+
+	memcpy(&nc, p, sizeof(nc));	/* number of headers */
+	p += sizeof(nc);
+
+	memcpy(&id, p, sizeof(id));	/* server conf id */
+	srv_conf = serverconfig_byid(id);
+	p += sizeof(id);
+
+	len += nc*sizeof(*hdr);
+	if (IMSG_DATA_SIZE(imsg) < len) {
+		log_debug("%s: invalid message length", __func__);
+		return (-1);
+	}
+
+	/* Find associated server config */
+	TAILQ_FOREACH(srv, env->sc_servers, srv_entry) {
+		if (srv->srv_conf.id == id) {
+			srv_conf = &srv->srv_conf;
+			break;
+		}
+		TAILQ_FOREACH(iconf, &srv->srv_hosts, entry) {
+			if (iconf->id == id) {
+				srv_conf = iconf;
+				break;
+			}
+		}
+	}
+
+	/* Fetch custom headers */
+	for (c = 0; c < nc; c++) {
+		if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+			fatalx("headers out of memory");
+		memcpy(hdr, p, sizeof(*hdr));
+		TAILQ_INSERT_HEAD(&srv_conf->headers, hdr, entry);
+
+		p += sizeof(*hdr);
+	}
+
+	return (0);
+}
+
+int
+config_setserver_headers(struct httpd *env, struct server *srv)
+{
+	struct privsep		*ps = env->sc_ps;
+	struct server_config	*srv_conf = &srv->srv_conf;
+	struct custom_header	*hdr;
+	struct iovec		*iov;
+	size_t			 c = 0, nc = 0;
+
+	DPRINTF("%s: sending headers for \"%s[%u]\" to %s fd %d", __func__,
+	    srv_conf->name, srv_conf->id, ps->ps_title[PROC_SERVER],
+	    srv->srv_s);
+
+	if (TAILQ_EMPTY(&srv_conf->headers))	/* nothing to do */
+		return (0);
+
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
+		nc++;
+	}
+	if ((iov = calloc(nc + 2, sizeof(*iov))) == NULL)
+		return (-1);
+
+	iov[c].iov_base = &nc;			/* number of headers */
+	iov[c++].iov_len = sizeof(nc);
+	iov[c].iov_base = &srv_conf->id;	/* server config id */
+	iov[c++].iov_len = sizeof(srv_conf->id);
+
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {	/* push headers */
+		iov[c].iov_base = hdr;
+		iov[c++].iov_len = sizeof(*hdr);
+	}
+	if (proc_composev(ps, PROC_SERVER, IMSG_CFG_HEADERS, iov, c) != 0) {
+		log_warn("%s: failed to compose IMSG_CFG_HEADERS imsg for "
 		    "`%s'", __func__, srv_conf->name);
 		free(iov);
 		return (-1);
@@ -643,6 +745,20 @@ config_getserver_config(struct httpd *env, struct server *srv,
 		    sizeof(srv_conf->errdocroot));
 
 		srv_conf->flags |= parent->flags & SRVFLAG_NO_BANNER;
+
+		/* Inherit custom headers from parent if location has none */
+		if (TAILQ_EMPTY(&srv_conf->headers)) {
+			struct custom_header *hdr, *hdr_copy;
+			TAILQ_FOREACH(hdr, &parent->headers, entry) {
+				if ((hdr_copy = calloc(1, sizeof(*hdr_copy))) == NULL)
+					goto fail;
+				/* Copy only data fields, not TAILQ_ENTRY */
+				strlcpy(hdr_copy->name, hdr->name, sizeof(hdr_copy->name));
+				strlcpy(hdr_copy->value, hdr->value, sizeof(hdr_copy->value));
+				hdr_copy->flags = hdr->flags;
+				TAILQ_INSERT_TAIL(&srv_conf->headers, hdr_copy, entry);
+			}
+		}
 
 		DPRINTF("%s: %s %d location \"%s\", "
 		    "parent \"%s[%u]\", flags: %s",

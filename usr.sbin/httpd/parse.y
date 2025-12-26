@@ -142,6 +142,7 @@ typedef struct {
 %token	ERROR INCLUDE AUTHENTICATE WITH BLOCK DROP RETURN PASS REWRITE
 %token	CA CLIENT CRL OPTIONAL PARAM FORWARDED FOUND NOT
 %token	ERRDOCS GZIPSTATIC BANNER
+%token	HEADER ADD ALWAYS HIDE
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.port>	port
@@ -323,6 +324,7 @@ server		: SERVER optmatch STRING	{
 			SPLAY_INIT(&srv->srv_clients);
 			TAILQ_INIT(&srv->srv_hosts);
 			TAILQ_INIT(&srv_conf->fcgiparams);
+			TAILQ_INIT(&srv_conf->headers);
 
 			TAILQ_INSERT_TAIL(&srv->srv_hosts, srv_conf, entry);
 		} '{' optnl serveropts_l '}'	{
@@ -557,6 +559,7 @@ serveroptsl	: LISTEN ON STRING opttls port	{
 		| root
 		| directory
 		| banner
+		| header
 		| logformat
 		| fastcgi
 		| authenticate
@@ -643,6 +646,8 @@ serveroptsl	: LISTEN ON STRING opttls port	{
 			srv = s;
 			srv_conf = &srv->srv_conf;
 			SPLAY_INIT(&srv->srv_clients);
+			TAILQ_INIT(&srv_conf->fcgiparams);
+			TAILQ_INIT(&srv_conf->headers);
 		} '{' optnl serveropts_l '}'	{
 			struct server	*s = NULL;
 			uint32_t	 f;
@@ -707,6 +712,82 @@ banner		: BANNER		{
 				YYERROR;
 			}
 			srv->srv_conf.flags |= SRVFLAG_NO_BANNER;
+		}
+		;
+
+header		: HEADER HIDE STRING	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			hdr->flags = HEADER_HIDE;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER ADD STRING STRING	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			hdr->flags = 0;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER ALWAYS ADD STRING STRING	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $4, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($4);
+				free($5);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			if (strlcpy(hdr->value, $5, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($5);
+				free(hdr);
+				YYERROR;
+			}
+			free($5);
+
+			hdr->flags = HEADER_ALWAYS;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		;
 
@@ -1447,7 +1528,9 @@ lookup(char *s)
 	/* this has to be sorted always */
 	static const struct keywords keywords[] = {
 		{ "access",		ACCESS },
+		{ "add",		ADD },
 		{ "alias",		ALIAS },
+		{ "always",		ALWAYS },
 		{ "authenticate",	AUTHENTICATE},
 		{ "auto",		AUTO },
 		{ "backlog",		BACKLOG },
@@ -1475,6 +1558,8 @@ lookup(char *s)
 		{ "forwarded",		FORWARDED },
 		{ "found",		FOUND },
 		{ "gzip-static",	GZIPSTATIC },
+		{ "header",		HEADER },
+		{ "hide",		HIDE },
 		{ "hsts",		HSTS },
 		{ "include",		INCLUDE },
 		{ "index",		INDEX },

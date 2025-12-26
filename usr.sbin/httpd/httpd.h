@@ -209,6 +209,7 @@ enum imsg_type {
 	IMSG_CFG_MEDIA,
 	IMSG_CFG_AUTH,
 	IMSG_CFG_FCGI,
+	IMSG_CFG_HEADERS,
 	IMSG_CFG_DONE,
 	IMSG_LOG_ACCESS,
 	IMSG_LOG_ERROR,
@@ -470,6 +471,17 @@ struct fastcgi_param {
 };
 TAILQ_HEAD(server_fcgiparams, fastcgi_param);
 
+struct custom_header {
+	char			name[128];
+	char			value[512];
+	uint8_t			flags;
+#define HEADER_HIDE		0x01
+#define HEADER_ALWAYS		0x02
+
+	TAILQ_ENTRY(custom_header) entry;
+};
+TAILQ_HEAD(server_headers, custom_header);
+
 struct server_config {
 	uint32_t		 id;
 	uint32_t		 parent_id;
@@ -540,6 +552,7 @@ struct server_config {
 
 	struct server_fcgiparams fcgiparams;
 	int			 fcgistrip;
+	struct server_headers	 headers;
 	char			 errdocroot[HTTPD_ERRDOCROOT_MAX];
 
 	TAILQ_ENTRY(server_config) entry;
@@ -673,6 +686,8 @@ void	 server_http(void);
 int	 server_httpdesc_init(struct client *);
 void	 server_read_http(struct bufferevent *, void *);
 void	 server_abort_http(struct client *, unsigned int, const char *);
+void	 server_add_custom_headers(struct server_config *, struct kvtree *,
+	    int, unsigned int);
 unsigned int
 	 server_httpmethod_byname(const char *);
 const char
@@ -825,9 +840,11 @@ int	 config_getcfg(struct httpd *, struct imsg *);
 int	 config_setserver(struct httpd *, struct server *);
 int	 config_setserver_tls(struct httpd *, struct server *);
 int	 config_setserver_fcgiparams(struct httpd *, struct server *);
+int	 config_setserver_headers(struct httpd *, struct server *);
 int	 config_getserver(struct httpd *, struct imsg *);
 int	 config_getserver_tls(struct httpd *, struct imsg *);
 int	 config_getserver_fcgiparams(struct httpd *, struct imsg *);
+int	 config_getserver_headers(struct httpd *, struct imsg *);
 int	 config_setmedia(struct httpd *, struct media_type *);
 int	 config_getmedia(struct httpd *, struct imsg *);
 int	 config_setauth(struct httpd *, struct auth *);

@@ -464,6 +464,32 @@ Enable static gzip compression to save bandwidth.
 If gzip encoding is accepted and if the requested file exists with
 an additional .gz suffix, use the compressed file instead and deliver
 it with content encoding gzip.
+.It Ic header Ar option
+Manipulate HTTP response headers.
+Multiple header statements may be specified.
+Valid options are:
+.Bl -tag -width Ds
+.It Ic add Ar name Ar value
+Add a custom HTTP response header with the specified
+.Ar name
+and
+.Ar value .
+The header will be added to successful responses (2xx and 3xx status codes).
+.It Ic always add Ar name Ar value
+Add a custom HTTP response header that is included in all responses,
+including error responses (4xx and 5xx status codes).
+.It Ic hide Ar name
+Suppress an HTTP response header with the specified
+.Ar name .
+This can be used to remove headers that are added by default,
+such as
+.Qq Last-Modified
+or custom headers inherited from a parent server configuration.
+.El
+.Pp
+Header names are limited to 127 characters and values to 511 characters.
+Headers specified in a location block inherit headers from the parent
+server configuration unless the location defines its own headers.
 .It Ic hsts Oo Ar option Oc
 Enable HTTP Strict Transport Security.
 Valid options are:
@@ -892,6 +918,29 @@ server "example.com" {
 	listen on * port 80
 	location match "/old/(.*)" {
 		request rewrite "/new/%1"
+	}
+}
+.Ed
+.Pp
+Custom HTTP headers can be added to responses for security or compatibility:
+.Bd -literal -offset indent
+server "example.com" {
+	listen on * tls port 443
+
+	# Add security headers to all responses
+	header always add "X-Frame-Options" "SAMEORIGIN"
+	header always add "X-Content-Type-Options" "nosniff"
+	header always add "Content-Security-Policy" "default-src 'self'"
+
+	# Add custom header to successful responses only
+	header add "X-Powered-By" "OpenBSD httpd"
+
+	# Hide default Last-Modified header
+	header hide "Last-Modified"
+
+	location "/api/*" {
+		# Location inherits parent headers and can add more
+		header add "Access-Control-Allow-Origin" "*"
 	}
 }
 .Ed

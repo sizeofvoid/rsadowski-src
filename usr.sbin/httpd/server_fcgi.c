@@ -730,6 +730,8 @@ server_fcgi_header(struct client *clt, unsigned int code)
 	    kv_add(&resp->http_headers, "Date", tmbuf) == NULL))
 		return (-1);
 
+	server_add_custom_headers(srv_conf, &resp->http_headers, 0, code);
+
 	if (server_writeresponse_http(clt) == -1 ||
 	    server_bufferevent_print(clt, "\r\n") == -1 ||
 	    server_headers(clt, resp, server_writeheader_http, NULL) == -1 ||

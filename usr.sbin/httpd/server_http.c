@@ -54,6 +54,7 @@ char		*server_expand_http(struct client *, const char *,
 		    char *, size_t);
 char		*replace_var(char *, const char *, const char *);
 char		*read_errdoc(const char *, const char *);
+char		*get_always_custom_headers(struct server_config *);
 
 static struct http_method	 http_methods[] = HTTP_METHODS;
 static struct http_error	 http_errors[] = HTTP_ERRORS;
@@ -892,6 +893,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	char			 tmbuf[32], hbuf[128], *hstsheader = NULL;
 	char			*clenheader = NULL;
 	char			*bannerheader = NULL, *bannertoken = NULL;
+	char			*customheaders = NULL;
 	char			 buf[IBUF_READ_SIZE];
 	char			*escapedmsg = NULL;
 	char			 cstr[5];
@@ -1060,6 +1062,8 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 			goto done;
 		}
 
+	customheaders = get_always_custom_headers(srv_conf);
+
 	/* Add basic HTTP headers */
 	if (asprintf(&httpmsg,
 	    "HTTP/1.0 %03d %s\r\n"
@@ -1070,6 +1074,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	    "%s"
 	    "%s"
 	    "%s"
+	    "%s"
 	    "\r\n"
 	    "%s",
 	    code, httperr, tmbuf,
@@ -1077,6 +1082,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	    clenheader == NULL ? "" : clenheader,
 	    extraheader == NULL ? "" : extraheader,
 	    hstsheader == NULL ? "" : hstsheader,
+	    customheaders == NULL ? "" : customheaders,
 	    desc->http_method == HTTP_METHOD_HEAD || clenheader == NULL ?
 	    "" : body) == -1)
 		goto done;
@@ -1092,6 +1098,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	free(clenheader);
 	free(bannerheader);
 	free(bannertoken);
+	free(customheaders);
 	if (msg == NULL)
 		msg = "\"\"";
 	if (asprintf(&httpmsg, "%s (%03d %s)", msg, code, httperr) == -1) {
@@ -1561,6 +1568,76 @@ server_locationaccesstest(struct server_config *srv_conf, const char *path)
 	    (ret == 0 && SRVFLAG_LOCATION_NOT_FOUND & srv_conf->flags));
 }
 
+/*
+ * Add or remove custom headers configured for this server.
+ * Headers marked as always are included in all responses.
+ * Regular headers are only added to 2xx and 3xx responses.
+ */
+void
+server_add_custom_headers(struct server_config *srv_conf,
+    struct kvtree *headers, int is_error, unsigned int code)
+{
+	struct custom_header	*hdr;
+	struct kv		*kv, search;
+
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
+		if (is_error && !(hdr->flags & HEADER_ALWAYS))
+			continue;
+
+		if (!is_error && !(hdr->flags & HEADER_ALWAYS)) {
+			if (code != 200 && code != 201 && code != 204 &&
+			    code != 206 && code != 301 && code != 302 &&
+			    code != 303 && code != 304 && code != 307 &&
+			    code != 308)
+				continue;
+		}
+
+		if (hdr->flags & HEADER_HIDE) {
+			/* Remove header from response */
+			search.kv_key = hdr->name;
+			if ((kv = kv_find(headers, &search)) != NULL)
+				kv_delete(headers, kv);
+		} else {
+			/* Add header to response */
+			kv_add(headers, hdr->name, hdr->value);
+		}
+	}
+}
+
+/*
+ * Build a raw custom HTTP header.
+ * only includes headers marked as always.
+ * Returns the string or NULL on error/no headers.
+ */
+char *
+get_always_custom_headers(struct server_config *srv_conf)
+{
+	struct custom_header *hdr;
+	char *headers = NULL;
+	char *tmp = NULL;
+
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
+		if (!(hdr->flags & HEADER_ALWAYS) || hdr->flags & HEADER_HIDE)
+			continue;
+
+		if (headers == NULL) {
+			if (asprintf(&headers, "%s: %s\r\n", hdr->name,
+			    hdr->value) == -1) {
+				return (NULL);
+			}
+		} else {
+			if (asprintf(&tmp, "%s%s: %s\r\n", headers, hdr->name,
+			    hdr->value) == -1) {
+				free(headers);
+				return (NULL);
+			}
+			free(headers);
+			headers = tmp;
+		}
+	}
+	return (headers);
+}
+
 int
 server_response_http(struct client *clt, unsigned int code,
     struct media_type *media, off_t size, time_t mtime)
@@ -1627,6 +1704,8 @@ server_response_http(struct client *clt, unsigned int code,
 		    "; preload" : "") == -1)
 			return (-1);
 	}
+
+	server_add_custom_headers(srv_conf, &resp->http_headers, 0, code);
 
 	/* Date header is mandatory and should be added as late as possible */
 	if (server_http_time(time(NULL), tmbuf, sizeof(tmbuf)) <= 0 ||

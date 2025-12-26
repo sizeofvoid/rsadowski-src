@@ -503,6 +503,7 @@ serverconfig_reset(struct server_config *srv_conf)
 	srv_conf->tls_ocsp_staple = NULL;
 	srv_conf->tls_ocsp_staple_file = NULL;
 	TAILQ_INIT(&srv_conf->fcgiparams);
+	TAILQ_INIT(&srv_conf->headers);
 }
 
 struct server *
@@ -1365,6 +1366,9 @@ server_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 		break;
 	case IMSG_CFG_FCGI:
 		config_getserver_fcgiparams(httpd_env, imsg);
+		break;
+	case IMSG_CFG_HEADERS:
+		config_getserver_headers(httpd_env, imsg);
 		break;
 	case IMSG_CFG_DONE:
 		config_getcfg(httpd_env, imsg);
