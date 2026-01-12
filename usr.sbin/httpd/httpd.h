@@ -475,7 +475,7 @@ struct custom_header {
 	char			name[128];
 	char			value[512];
 	uint8_t			flags;
-#define HEADER_HIDE		0x01
+#define HEADER_REMOVE		0x01
 #define HEADER_ALWAYS		0x02
 
 	TAILQ_ENTRY(custom_header) entry;

@@ -1592,7 +1592,7 @@ server_add_custom_headers(struct server_config *srv_conf,
 				continue;
 		}
 
-		if (hdr->flags & HEADER_HIDE) {
+		if (hdr->flags & HEADER_REMOVE) {
 			/* Remove header from response */
 			search.kv_key = hdr->name;
 			if ((kv = kv_find(headers, &search)) != NULL)
@@ -1617,7 +1617,8 @@ get_always_custom_headers(struct server_config *srv_conf)
 	char *tmp = NULL;
 
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		if (!(hdr->flags & HEADER_ALWAYS) || hdr->flags & HEADER_HIDE)
+		if (!(hdr->flags & HEADER_ALWAYS)
+		      || hdr->flags & HEADER_REMOVE)
 			continue;
 
 		if (headers == NULL) {

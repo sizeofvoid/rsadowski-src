@@ -142,7 +142,7 @@ typedef struct {
 %token	ERROR INCLUDE AUTHENTICATE WITH BLOCK DROP RETURN PASS REWRITE
 %token	CA CLIENT CRL OPTIONAL PARAM FORWARDED FOUND NOT
 %token	ERRDOCS GZIPSTATIC BANNER
-%token	HEADER ADD ALWAYS HIDE
+%token	HEADER ADD ALWAYS REMOVE
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.port>	port
@@ -715,7 +715,7 @@ banner		: BANNER		{
 		}
 		;
 
-header		: HEADER HIDE STRING	{
+header		: HEADER REMOVE STRING	{
 			struct custom_header	*hdr;
 
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
@@ -728,9 +728,14 @@ header		: HEADER HIDE STRING	{
 				free(hdr);
 				YYERROR;
 			}
-			free($3);
+			if (strcmp("Server", hdr->name) == 0) {
+				yyerror("'header remover Server' ignored, use 'no banner'");
+				free($3);
+				free(hdr);
+				YYERROR;
+			}
 
-			hdr->flags = HEADER_HIDE;
+			hdr->flags = HEADER_REMOVE;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		| HEADER ADD STRING STRING	{
@@ -1559,7 +1564,6 @@ lookup(char *s)
 		{ "found",		FOUND },
 		{ "gzip-static",	GZIPSTATIC },
 		{ "header",		HEADER },
-		{ "hide",		HIDE },
 		{ "hsts",		HSTS },
 		{ "include",		INCLUDE },
 		{ "index",		INDEX },
@@ -1585,6 +1589,7 @@ lookup(char *s)
 		{ "prefork",		PREFORK },
 		{ "preload",		PRELOAD },
 		{ "protocols",		PROTOCOLS },
+		{ "remove",		REMOVE },
 		{ "request",		REQUEST },
 		{ "requests",		REQUESTS },
 		{ "return",		RETURN },
