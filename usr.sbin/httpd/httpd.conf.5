@@ -469,16 +469,17 @@ Manipulate HTTP response headers.
 Multiple header statements may be specified.
 Valid options are:
 .Bl -tag -width Ds
-.It Ic add Ar name Ar value
+.It Ic add Ar name Ar value Op Ic always
 Add a custom HTTP response header with the specified
 .Ar name
 and
 .Ar value .
 The header will be added to successful responses (2xx and 3xx status codes).
-.It Ic always add Ar name Ar value
-Add a custom HTTP response header that is included in all responses,
+If
+.Ic always
+is specified, the header will be added to all responses,
 including error responses (4xx and 5xx status codes).
-.It Ic hide Ar name
+.It Ic remove Ar name
 Suppress an HTTP response header with the specified
 .Ar name .
 This can be used to remove headers that are added by default,
@@ -928,15 +929,15 @@ server "example.com" {
 	listen on * tls port 443
 
 	# Add security headers to all responses
-	header always add "X-Frame-Options" "SAMEORIGIN"
-	header always add "X-Content-Type-Options" "nosniff"
-	header always add "Content-Security-Policy" "default-src 'self'"
+	header add "X-Frame-Options" "SAMEORIGIN" always
+	header add "X-Content-Type-Options" "nosniff" always
+	header add "Content-Security-Policy" "default-src 'self'" always
 
 	# Add custom header to successful responses only
 	header add "X-Powered-By" "OpenBSD httpd"
 
-	# Hide default Last-Modified header
-	header hide "Last-Modified"
+	# Remove default Last-Modified header
+	header remove "Last-Modified"
 
 	location "/api/*" {
 		# Location inherits parent headers and can add more

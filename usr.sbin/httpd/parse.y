@@ -766,30 +766,30 @@ header		: HEADER REMOVE STRING	{
 			hdr->flags = 0;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
-		| HEADER ALWAYS ADD STRING STRING	{
+		| HEADER ADD STRING STRING ALWAYS	{
 			struct custom_header	*hdr;
 
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
 
-			if (strlcpy(hdr->name, $4, sizeof(hdr->name)) >=
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
 			    sizeof(hdr->name)) {
 				yyerror("header name truncated");
+				free($3);
 				free($4);
-				free($5);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
 				free(hdr);
 				YYERROR;
 			}
 			free($4);
-
-			if (strlcpy(hdr->value, $5, sizeof(hdr->value)) >=
-			    sizeof(hdr->value)) {
-				yyerror("header value truncated");
-				free($5);
-				free(hdr);
-				YYERROR;
-			}
-			free($5);
 
 			hdr->flags = HEADER_ALWAYS;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
