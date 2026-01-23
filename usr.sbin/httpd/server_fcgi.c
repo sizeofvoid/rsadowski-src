@@ -723,14 +723,14 @@ server_fcgi_header(struct client *clt, unsigned int code)
 			return (-1);
 	}
 
+	server_custom_headers(srv_conf, &resp->http_headers, code);
+
 	/* Date header is mandatory and should be added as late as possible */
 	key.kv_key = "Date";
 	if (kv_find(&resp->http_headers, &key) == NULL &&
 	    (server_http_time(time(NULL), tmbuf, sizeof(tmbuf)) <= 0 ||
 	    kv_add(&resp->http_headers, "Date", tmbuf) == NULL))
 		return (-1);
-
-	server_add_custom_headers(srv_conf, &resp->http_headers, 0, code);
 
 	if (server_writeresponse_http(clt) == -1 ||
 	    server_bufferevent_print(clt, "\r\n") == -1 ||

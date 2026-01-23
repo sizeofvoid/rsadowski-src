@@ -756,7 +756,7 @@ config_getserver_config(struct httpd *env, struct server *srv,
 				strlcpy(hdr_copy->name, hdr->name, sizeof(hdr_copy->name));
 				strlcpy(hdr_copy->value, hdr->value, sizeof(hdr_copy->value));
 				hdr_copy->flags = hdr->flags;
-				TAILQ_INSERT_TAIL(&srv_conf->headers, hdr_copy, entry);
+				TAILQ_INSERT_HEAD(&srv_conf->headers, hdr_copy, entry);
 			}
 		}
 

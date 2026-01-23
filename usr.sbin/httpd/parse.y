@@ -142,7 +142,7 @@ typedef struct {
 %token	ERROR INCLUDE AUTHENTICATE WITH BLOCK DROP RETURN PASS REWRITE
 %token	CA CLIENT CRL OPTIONAL PARAM FORWARDED FOUND NOT
 %token	ERRDOCS GZIPSTATIC BANNER
-%token	HEADER ADD ALWAYS REMOVE
+%token	HEADER ADD ALWAYS REMOVE SET
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.port>	port
@@ -323,7 +323,6 @@ server		: SERVER optmatch STRING	{
 
 			SPLAY_INIT(&srv->srv_clients);
 			TAILQ_INIT(&srv->srv_hosts);
-			TAILQ_INIT(&srv_conf->fcgiparams);
 			TAILQ_INIT(&srv_conf->headers);
 
 			TAILQ_INSERT_TAIL(&srv->srv_hosts, srv_conf, entry);
@@ -729,11 +728,13 @@ header		: HEADER REMOVE STRING	{
 				YYERROR;
 			}
 			if (strcmp("Server", hdr->name) == 0) {
-				yyerror("'header remover Server' ignored, use 'no banner'");
+				yyerror("'header remover Server' "
+					"ignored, use 'no banner'");
 				free($3);
 				free(hdr);
 				YYERROR;
 			}
+			free($3);
 
 			hdr->flags = HEADER_REMOVE;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
@@ -763,7 +764,7 @@ header		: HEADER REMOVE STRING	{
 			}
 			free($4);
 
-			hdr->flags = 0;
+			hdr->flags = HEADER_ADD;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		| HEADER ADD STRING STRING ALWAYS	{
@@ -791,7 +792,65 @@ header		: HEADER REMOVE STRING	{
 			}
 			free($4);
 
-			hdr->flags = HEADER_ALWAYS;
+			hdr->flags = HEADER_ADD;
+			hdr->flags |= HEADER_ALWAYS;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER SET STRING STRING	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			hdr->flags = HEADER_SET;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER SET STRING STRING ALWAYS	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			hdr->flags = HEADER_SET;
+			hdr->flags |= HEADER_ALWAYS;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		;
@@ -1597,6 +1656,7 @@ lookup(char *s)
 		{ "root",		ROOT },
 		{ "sack",		SACK },
 		{ "server",		SERVER },
+		{ "set",		SET },
 		{ "socket",		SOCKET },
 		{ "strip",		STRIP },
 		{ "style",		STYLE },

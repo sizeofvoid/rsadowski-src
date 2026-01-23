@@ -50,6 +50,7 @@ void		 server_httpdesc_free(struct http_descriptor *);
 int		 server_http_authenticate(struct server_config *,
 		    struct client *);
 static int	 http_version_num(char *);
+static int	 http_is_success(unsigned int code);
 char		*server_expand_http(struct client *, const char *,
 		    char *, size_t);
 char		*replace_var(char *, const char *, const char *);
@@ -219,6 +220,25 @@ http_version_num(char *version)
 			return (11);
 	}
 	return (0);
+}
+static int
+http_is_success(unsigned int code)
+{
+	switch (code) {
+	case 200:
+	case 201:
+	case 204:
+	case 206:
+	case 301:
+	case 302:
+	case 303:
+	case 304:
+	case 307:
+	case 308:
+		return (0);
+	default:
+		return (1);
+	}
 }
 
 void
@@ -1568,38 +1588,36 @@ server_locationaccesstest(struct server_config *srv_conf, const char *path)
 	    (ret == 0 && SRVFLAG_LOCATION_NOT_FOUND & srv_conf->flags));
 }
 
-/*
- * Add or remove custom headers configured for this server.
- * Headers marked as always are included in all responses.
- * Regular headers are only added to 2xx and 3xx responses.
- */
 void
-server_add_custom_headers(struct server_config *srv_conf,
-    struct kvtree *headers, int is_error, unsigned int code)
+server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
+    unsigned int code)
 {
 	struct custom_header	*hdr;
 	struct kv		*kv, search;
 
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		if (is_error && !(hdr->flags & HEADER_ALWAYS))
+		/* Only include headers not marked ALWAYS on success. */
+		if (!(hdr->flags & HEADER_ALWAYS) &&
+		    http_is_success(code) != 0)
 			continue;
 
-		if (!is_error && !(hdr->flags & HEADER_ALWAYS)) {
-			if (code != 200 && code != 201 && code != 204 &&
-			    code != 206 && code != 301 && code != 302 &&
-			    code != 303 && code != 304 && code != 307 &&
-			    code != 308)
-				continue;
-		}
+		search.kv_key = hdr->name;
 
+		/* deletes all existing headers of the same key */
 		if (hdr->flags & HEADER_REMOVE) {
-			/* Remove header from response */
-			search.kv_key = hdr->name;
-			if ((kv = kv_find(headers, &search)) != NULL)
+			while ((kv = kv_find(headers, &search)) != NULL)
 				kv_delete(headers, kv);
-		} else {
-			/* Add header to response */
-			kv_add(headers, hdr->name, hdr->value);
+		/* replaces all existing headers of the same name */
+		} else if (hdr->flags & HEADER_SET) {
+			while ((kv = kv_find(headers, &search)) != NULL)
+				kv_delete(headers, kv);
+
+			if (kv_add(headers, hdr->name, hdr->value) == NULL)
+				return;
+		/* appends a new header without checking for duplicates */
+		} else if (hdr->flags & HEADER_ADD) {
+			if (kv_add(headers, hdr->name, hdr->value) == NULL)
+				return;
 		}
 	}
 }
@@ -1705,8 +1723,7 @@ server_response_http(struct client *clt, unsigned int code,
 		    "; preload" : "") == -1)
 			return (-1);
 	}
-
-	server_add_custom_headers(srv_conf, &resp->http_headers, 0, code);
+	server_custom_headers(srv_conf, &resp->http_headers, code);
 
 	/* Date header is mandatory and should be added as late as possible */
 	if (server_http_time(time(NULL), tmbuf, sizeof(tmbuf)) <= 0 ||

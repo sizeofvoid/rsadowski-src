@@ -466,31 +466,52 @@ an additional .gz suffix, use the compressed file instead and deliver
 it with content encoding gzip.
 .It Ic header Ar option
 Manipulate HTTP response headers.
-Multiple header statements may be specified.
+Multiple
+.Ic header
+statements may be specified.
 Valid options are:
 .Bl -tag -width Ds
+.It Ic set Ar name Ar value Op Ic always
+Set a custom HTTP response header with the specified
+.Ar name
+and
+.Ar value .
+If a header with the same
+.Ar name
+is already present in the response, its value will be replaced.
+The header is added to successful responses
+(2xx and 3xx status codes) by default.
 .It Ic add Ar name Ar value Op Ic always
 Add a custom HTTP response header with the specified
 .Ar name
 and
 .Ar value .
-The header will be added to successful responses (2xx and 3xx status codes).
-If
-.Ic always
-is specified, the header will be added to all responses,
-including error responses (4xx and 5xx status codes).
+Unlike
+.Ic set ,
+this option appends the header even if one with the same
+.Ar name
+already exists, allowing for multiple headers with the same name.
+The header is added to successful responses
+(2xx and 3xx status codes) by default.
 .It Ic remove Ar name
-Suppress an HTTP response header with the specified
+Suppress the HTTP response header with the specified
 .Ar name .
-This can be used to remove headers that are added by default,
-such as
-.Qq Last-Modified
-or custom headers inherited from a parent server configuration.
+This can be used to remove headers added by default, such as
+.Qq Last-Modified ,
+as well as headers inherited from a parent server configuration.
 .El
 .Pp
+If
+.Ic always
+is specified, the header will be included in all responses,
+including error pages (4xx and 5xx status codes).
+.Pp
 Header names are limited to 127 characters and values to 511 characters.
-Headers specified in a location block inherit headers from the parent
-server configuration unless the location defines its own headers.
+Headers defined in a
+.Ic location
+block replace any headers defined in the parent
+.Ic server
+context.
 .It Ic hsts Oo Ar option Oc
 Enable HTTP Strict Transport Security.
 Valid options are:
@@ -928,13 +949,12 @@ Custom HTTP headers can be added to responses for security or compatibility:
 server "example.com" {
 	listen on * tls port 443
 
-	# Add security headers to all responses
-	header add "X-Frame-Options" "SAMEORIGIN" always
-	header add "X-Content-Type-Options" "nosniff" always
-	header add "Content-Security-Policy" "default-src 'self'" always
+	header set "X-Powered-By" "OpenBSD httpd"
 
-	# Add custom header to successful responses only
-	header add "X-Powered-By" "OpenBSD httpd"
+	header set "X-Content-Type-Options" "nosniff" always
+	header set "X-Frame-Options" "DENY" always
+
+	header add "Set-Cookie" "id=23; HttpOnly; Secure"
 
 	# Remove default Last-Modified header
 	header remove "Last-Modified"

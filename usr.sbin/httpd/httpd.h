@@ -476,7 +476,9 @@ struct custom_header {
 	char			value[512];
 	uint8_t			flags;
 #define HEADER_REMOVE		0x01
-#define HEADER_ALWAYS		0x02
+#define HEADER_ADD		0x02
+#define HEADER_SET		0x04
+#define HEADER_ALWAYS		0x08
 
 	TAILQ_ENTRY(custom_header) entry;
 };
@@ -686,8 +688,8 @@ void	 server_http(void);
 int	 server_httpdesc_init(struct client *);
 void	 server_read_http(struct bufferevent *, void *);
 void	 server_abort_http(struct client *, unsigned int, const char *);
-void	 server_add_custom_headers(struct server_config *, struct kvtree *,
-	    int, unsigned int);
+void	 server_custom_headers(struct server_config *, struct kvtree *,
+	    unsigned int);
 unsigned int
 	 server_httpmethod_byname(const char *);
 const char
