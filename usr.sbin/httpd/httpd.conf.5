@@ -960,7 +960,7 @@ server "example.com" {
 	header remove "Last-Modified"
 
 	location "/api/*" {
-		# Location inherits parent headers and can add more
+		# This location defines its own headers
 		header add "Access-Control-Allow-Origin" "*"
 	}
 }

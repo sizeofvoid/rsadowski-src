@@ -1623,9 +1623,7 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 }
 
 /*
- * Build a raw custom HTTP header.
- * only includes headers marked as always.
- * Returns the string or NULL on error/no headers.
+ * Build a raw custom HTTP header that only includes headers marked as always
  */
 char *
 get_always_custom_headers(struct server_config *srv_conf)

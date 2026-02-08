@@ -323,6 +323,7 @@ server		: SERVER optmatch STRING	{
 
 			SPLAY_INIT(&srv->srv_clients);
 			TAILQ_INIT(&srv->srv_hosts);
+			TAILQ_INIT(&srv_conf->fcgiparams);
 			TAILQ_INIT(&srv_conf->headers);
 
 			TAILQ_INSERT_TAIL(&srv->srv_hosts, srv_conf, entry);
@@ -645,7 +646,6 @@ serveroptsl	: LISTEN ON STRING opttls port	{
 			srv = s;
 			srv_conf = &srv->srv_conf;
 			SPLAY_INIT(&srv->srv_clients);
-			TAILQ_INIT(&srv_conf->fcgiparams);
 			TAILQ_INIT(&srv_conf->headers);
 		} '{' optnl serveropts_l '}'	{
 			struct server	*s = NULL;

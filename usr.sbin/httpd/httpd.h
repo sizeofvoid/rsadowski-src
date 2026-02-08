@@ -843,6 +843,7 @@ int	 config_setserver(struct httpd *, struct server *);
 int	 config_setserver_tls(struct httpd *, struct server *);
 int	 config_setserver_fcgiparams(struct httpd *, struct server *);
 int	 config_setserver_headers(struct httpd *, struct server *);
+void	 config_inheritheaders(struct httpd *, struct server *);
 int	 config_getserver(struct httpd *, struct imsg *);
 int	 config_getserver_tls(struct httpd *, struct imsg *);
 int	 config_getserver_fcgiparams(struct httpd *, struct imsg *);

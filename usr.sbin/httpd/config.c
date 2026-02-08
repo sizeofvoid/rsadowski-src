@@ -217,6 +217,8 @@ config_setserver(struct httpd *env, struct server *srv)
 	if (server_privinit(srv) == -1)
 		return (-1);
 
+	config_inheritheaders(env, srv);
+
 	for (id = 0; id < PROC_MAX; id++) {
 		what = ps->ps_what[id];
 
@@ -271,6 +273,20 @@ config_setserver(struct httpd *env, struct server *srv)
 
 			/* Configure TLS if necessary. */
 			config_setserver_tls(env, srv);
+			/* Configure custom headers if necessary. */
+			config_setserver_headers(env, srv);
+		} else if (id == PROC_SERVER) {
+			if (proc_composev(ps, id, IMSG_CFG_SERVER,
+			    iov, c) != 0) {
+				log_warn("%s: failed to compose "
+				    "IMSG_CFG_SERVER imsg for `%s'",
+				    __func__, srv->srv_conf.name);
+				return (-1);
+			}
+			/* Configure FCGI parameters if necessary. */
+			config_setserver_fcgiparams(env, srv);
+			/* Configure custom headers if necessary. */
+			config_setserver_headers(env, srv);
 		} else {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
 			    iov, c) != 0) {
@@ -279,12 +295,6 @@ config_setserver(struct httpd *env, struct server *srv)
 				    __func__, srv->srv_conf.name);
 				return (-1);
 			}
-
-			/* Configure FCGI parameters if necessary. */
-			config_setserver_fcgiparams(env, srv);
-
-			/* Configure custom headers if necessary. */
-			config_setserver_headers(env, srv);
 		}
 	}
 
@@ -500,6 +510,46 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	}
 
 	return (0);
+}
+
+/*
+ * Inherit headers from parent server if this is a location with no
+ * headers defined.
+ */
+void
+config_inheritheaders(struct httpd *env, struct server *srv)
+{
+	struct server		*parent_srv;
+	struct server_config	*srv_conf = &srv->srv_conf;
+	struct custom_header	*hdr, *hdr_copy;
+
+	/* Only for locations without their own headers */
+	if (!(srv_conf->flags & SRVFLAG_LOCATION) ||
+	    !TAILQ_EMPTY(&srv_conf->headers))
+		return;
+
+	/* Find parent server by parent_id */
+	TAILQ_FOREACH(parent_srv, env->sc_servers, srv_entry) {
+		if (parent_srv->srv_conf.id == srv_conf->parent_id)
+			break;
+	}
+
+	if (parent_srv == NULL)
+		return;
+
+	TAILQ_FOREACH(hdr, &parent_srv->srv_conf.headers, entry) {
+		if ((hdr_copy = calloc(1, sizeof(*hdr_copy))) == NULL)
+			fatal("out of memory");
+
+		strlcpy(hdr_copy->name, hdr->name, sizeof(hdr_copy->name));
+		strlcpy(hdr_copy->value, hdr->value, sizeof(hdr_copy->value));
+		hdr_copy->flags = hdr->flags;
+
+		TAILQ_INSERT_TAIL(&srv_conf->headers, hdr_copy, entry);
+		DPRINTF("%s: inheriting header \"%s\" from parent \"%s\" "
+		    "to location \"%s\"", __func__, hdr->name,
+		    parent_srv->srv_conf.name, srv_conf->location);
+	}
 }
 
 int
@@ -745,20 +795,6 @@ config_getserver_config(struct httpd *env, struct server *srv,
 		    sizeof(srv_conf->errdocroot));
 
 		srv_conf->flags |= parent->flags & SRVFLAG_NO_BANNER;
-
-		/* Inherit custom headers from parent if location has none */
-		if (TAILQ_EMPTY(&srv_conf->headers)) {
-			struct custom_header *hdr, *hdr_copy;
-			TAILQ_FOREACH(hdr, &parent->headers, entry) {
-				if ((hdr_copy = calloc(1, sizeof(*hdr_copy))) == NULL)
-					goto fail;
-				/* Copy only data fields, not TAILQ_ENTRY */
-				strlcpy(hdr_copy->name, hdr->name, sizeof(hdr_copy->name));
-				strlcpy(hdr_copy->value, hdr->value, sizeof(hdr_copy->value));
-				hdr_copy->flags = hdr->flags;
-				TAILQ_INSERT_HEAD(&srv_conf->headers, hdr_copy, entry);
-			}
-		}
 
 		DPRINTF("%s: %s %d location \"%s\", "
 		    "parent \"%s[%u]\", flags: %s",
