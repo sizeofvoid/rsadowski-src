@@ -509,9 +509,12 @@ including error pages (4xx and 5xx status codes).
 Header names are limited to 127 characters and values to 511 characters.
 Headers defined in a
 .Ic location
-block replace any headers defined in the parent
+block are inherited from the
 .Ic server
-context.
+context and override defined headers with the same name.
+If you do not wish to inherit these, you can remove them again with
+.Ic remove .
+
 .It Ic hsts Oo Ar option Oc
 Enable HTTP Strict Transport Security.
 Valid options are:

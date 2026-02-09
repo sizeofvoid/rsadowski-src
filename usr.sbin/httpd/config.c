@@ -217,7 +217,7 @@ config_setserver(struct httpd *env, struct server *srv)
 	if (server_privinit(srv) == -1)
 		return (-1);
 
-	config_inheritheaders(env, srv);
+	config_inherit_headers(env, srv);
 
 	for (id = 0; id < PROC_MAX; id++) {
 		what = ps->ps_what[id];
@@ -275,6 +275,7 @@ config_setserver(struct httpd *env, struct server *srv)
 			config_setserver_tls(env, srv);
 			/* Configure custom headers if necessary. */
 			config_setserver_headers(env, srv);
+
 		} else if (id == PROC_SERVER) {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
 			    iov, c) != 0) {
@@ -512,20 +513,30 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	return (0);
 }
 
+static int
+header_exists(struct server_config *srv_conf, const char *name)
+{
+	struct custom_header	*hdr;
+
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
+		if (strcasecmp(hdr->name, name) == 0)
+			return (1);
+	}
+	return (0);
+}
+
 /*
- * Inherit headers from parent server if this is a location with no
- * headers defined.
+ * Inherit headers from parent server, skipping those
+ * already defined in the location.
  */
 void
-config_inheritheaders(struct httpd *env, struct server *srv)
+config_inherit_headers(struct httpd *env, struct server *srv)
 {
 	struct server		*parent_srv;
 	struct server_config	*srv_conf = &srv->srv_conf;
 	struct custom_header	*hdr, *hdr_copy;
 
-	/* Only for locations without their own headers */
-	if (!(srv_conf->flags & SRVFLAG_LOCATION) ||
-	    !TAILQ_EMPTY(&srv_conf->headers))
+	if (!(srv_conf->flags & SRVFLAG_LOCATION))
 		return;
 
 	/* Find parent server by parent_id */
@@ -538,6 +549,14 @@ config_inheritheaders(struct httpd *env, struct server *srv)
 		return;
 
 	TAILQ_FOREACH(hdr, &parent_srv->srv_conf.headers, entry) {
+		if (header_exists(srv_conf, hdr->name)) {
+			DPRINTF("%s: skipping header \"%s\" from parent "
+			    "\"%s\", overridden in location \"%s\"",
+			    __func__, hdr->name,
+			    parent_srv->srv_conf.name, srv_conf->location);
+			continue;
+		}
+
 		if ((hdr_copy = calloc(1, sizeof(*hdr_copy))) == NULL)
 			fatal("out of memory");
 
