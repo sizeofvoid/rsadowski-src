@@ -965,6 +965,10 @@ server "example.com" {
 	location "/api/*" {
 		# This location defines its own headers
 		header add "Access-Control-Allow-Origin" "*"
+		# Override from server context
+		header set "Set-Cookie" "id=5; HttpOnly; Secure"
+		# Remove from server context
+		header remove "X-Frame-Options"
 	}
 }
 .Ed
