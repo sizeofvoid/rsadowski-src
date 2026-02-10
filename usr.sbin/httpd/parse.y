@@ -2556,7 +2556,7 @@ server_inherit(struct server *src, struct server_config *alias,
 
 		memcpy(&dstl->srv_conf, &s->srv_conf, sizeof(dstl->srv_conf));
 
-		/* copy custom headers from source location */
+		/* Copy custom headers from source location */
 		TAILQ_INIT(&dstl->srv_conf.headers);
 		TAILQ_FOREACH(hdr, &s->srv_conf.headers, entry) {
 			if ((nhdr = calloc(1, sizeof(*nhdr))) == NULL)
