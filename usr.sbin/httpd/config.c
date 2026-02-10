@@ -217,8 +217,6 @@ config_setserver(struct httpd *env, struct server *srv)
 	if (server_privinit(srv) == -1)
 		return (-1);
 
-	config_inherit_headers(env, srv);
-
 	for (id = 0; id < PROC_MAX; id++) {
 		what = ps->ps_what[id];
 
@@ -276,7 +274,8 @@ config_setserver(struct httpd *env, struct server *srv)
 			/* Configure custom headers if necessary. */
 			config_setserver_headers(env, srv);
 
-		} else if (id == PROC_SERVER) {
+		} else if (id == PROC_SERVER &&
+			   (srv->srv_conf.flags & SRVFLAG_LOCATION)) {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
 			    iov, c) != 0) {
 				log_warn("%s: failed to compose "
@@ -287,6 +286,7 @@ config_setserver(struct httpd *env, struct server *srv)
 			/* Configure FCGI parameters if necessary. */
 			config_setserver_fcgiparams(env, srv);
 			/* Configure custom headers if necessary. */
+			config_inherit_headers(env, srv);
 			config_setserver_headers(env, srv);
 		} else {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
