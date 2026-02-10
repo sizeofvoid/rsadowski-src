@@ -2448,12 +2448,24 @@ server_inherit(struct server *src, struct server_config *alias,
     struct server_config *addr)
 {
 	struct server	*dst, *s, *dstl;
+	struct custom_header	*hdr, *nhdr;
 
 	if ((dst = calloc(1, sizeof(*dst))) == NULL)
 		fatal("out of memory");
 
 	/* Copy the source server and assign a new Id */
 	memcpy(&dst->srv_conf, &src->srv_conf, sizeof(dst->srv_conf));
+
+	TAILQ_INIT(&dst->srv_conf.headers);
+	TAILQ_FOREACH(hdr, &src->srv_conf.headers, entry) {
+		if ((nhdr = calloc(1, sizeof(*nhdr))) == NULL)
+			fatal("out of memory");
+		strlcpy(nhdr->name, hdr->name, sizeof(nhdr->name));
+		strlcpy(nhdr->value, hdr->value, sizeof(nhdr->value));
+		nhdr->flags = hdr->flags;
+		TAILQ_INSERT_TAIL(&dst->srv_conf.headers, nhdr, entry);
+	}
+
 	if ((dst->srv_conf.tls_cert_file =
 	    strdup(src->srv_conf.tls_cert_file)) == NULL)
 		fatal("out of memory");
@@ -2543,6 +2555,18 @@ server_inherit(struct server *src, struct server_config *alias,
 			fatal("out of memory");
 
 		memcpy(&dstl->srv_conf, &s->srv_conf, sizeof(dstl->srv_conf));
+
+		/* copy custom headers from source location */
+		TAILQ_INIT(&dstl->srv_conf.headers);
+		TAILQ_FOREACH(hdr, &s->srv_conf.headers, entry) {
+			if ((nhdr = calloc(1, sizeof(*nhdr))) == NULL)
+				fatal("out of memory");
+			strlcpy(nhdr->name, hdr->name, sizeof(nhdr->name));
+			strlcpy(nhdr->value, hdr->value, sizeof(nhdr->value));
+			nhdr->flags = hdr->flags;
+			TAILQ_INSERT_TAIL(&dstl->srv_conf.headers, nhdr, entry);
+		}
+
 		strlcpy(dstl->srv_conf.name, alias->name,
 		    sizeof(dstl->srv_conf.name));
 

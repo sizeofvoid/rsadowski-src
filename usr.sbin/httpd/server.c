@@ -470,6 +470,7 @@ void
 serverconfig_free(struct server_config *srv_conf)
 {
 	struct fastcgi_param	*param, *tparam;
+	struct custom_header	*hdr, *thdr;
 
 	free(srv_conf->return_uri);
 	free(srv_conf->tls_ca_file);
@@ -485,6 +486,9 @@ serverconfig_free(struct server_config *srv_conf)
 
 	TAILQ_FOREACH_SAFE(param, &srv_conf->fcgiparams, entry, tparam)
 		free(param);
+
+	TAILQ_FOREACH_SAFE(hdr, &srv_conf->headers, entry, thdr)
+		free(hdr);
 }
 
 void
