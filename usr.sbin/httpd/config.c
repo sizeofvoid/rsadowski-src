@@ -274,8 +274,7 @@ config_setserver(struct httpd *env, struct server *srv)
 			/* Configure custom headers if necessary. */
 			config_setserver_headers(env, srv);
 
-		} else if (id == PROC_SERVER &&
-			   (srv->srv_conf.flags & SRVFLAG_LOCATION)) {
+		} else {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
 			    iov, c) != 0) {
 				log_warn("%s: failed to compose "
@@ -288,14 +287,6 @@ config_setserver(struct httpd *env, struct server *srv)
 			/* Configure custom headers if necessary. */
 			config_inherit_headers(env, srv);
 			config_setserver_headers(env, srv);
-		} else {
-			if (proc_composev(ps, id, IMSG_CFG_SERVER,
-			    iov, c) != 0) {
-				log_warn("%s: failed to compose "
-				    "IMSG_CFG_SERVER imsg for `%s'",
-				    __func__, srv->srv_conf.name);
-				return (-1);
-			}
 		}
 	}
 
